@@ -1,0 +1,124 @@
+<html>
+<head>
+  <title>Music Until</title>
+  <script src="jquery-1.8.2.min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="jquery.tmpl.min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="jquery.unparam.js" type="text/javascript" charset="utf-8"></script>
+  <script src="moment.min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="process.js" type="text/javascript" charset="utf-8"></script>
+
+  <style type="text/css" media="screen">
+  ul
+  {
+    list-style-type: none;
+  }
+  .song {
+    background-color: #bebebe;
+    padding: 20px;
+    height: 200px;
+    width: 50%;
+  }
+  .albumArt {
+    float: left
+  }
+  </style>
+
+  <script type="text/x-jquery-tmpl" id="song">
+<li>
+  <div class="song">
+    <div class="albumArt">
+      <img src="${album_image}"/>
+    </div>
+    <div class="songDetails">
+      <strong>Title</strong>${name} </br>
+        <strong>Time</strong>${duration} </br>
+    </div>
+  </div>
+</li>
+  </script>
+
+  <script type="text/javascript" charset="utf-8">
+
+  var playSong = function(song) {
+    console.log("Playing ", song)
+    var audio = $("#player");
+    $("#mp3_src").attr("src", song.audio);
+    audio[0].pause();
+    audio[0].load();
+    audio[0].play();
+  }
+
+  var playPlaylist = function(songs) {
+    var currentSong = 0;
+    var audio = $("#player")[0];
+    console.log(audio);
+    playSong(songs[0]);
+     audio.addEventListener("ended", function()
+     {
+          audio.currentTime = 0;
+          currentSong += 1;
+          if (currentSong < songs.length) {
+            playSong(songs[currentSong]);
+          }
+     });
+  }
+
+  var loadSongs = function(query, onSuccess) {
+    $.get( "http://api.jamendo.com/v3.0/tracks",
+    {client_id:"053ff92e",
+    boost:"popularity_week",
+    limit:"200",
+    imagesize:"200",
+    search:query},
+    function( data ) {
+      onSuccess(data.results);
+    });
+  }
+
+  var constructList = function(songs, duration) {
+    var minlist = optimise(duration, songs);
+    console.log(minlist)
+    $.each(minlist.playlist, function(index, song) {
+      $.tmpl( $('#song'), song).appendTo('#songList');
+    });
+    playPlaylist(minlist.playlist);
+  }
+
+  var parseHash = function() {
+    var hash = window.location.hash;
+    if (hash) {
+      var parsed = $.unparam(hash.substr(1));
+      parsed["time"] = moment(parsed["time"], "Hm")._d;
+      return parsed;
+    }
+  }
+
+  var until = function(time) {
+     var difference = time.valueOf() - (new Date()).valueOf();
+     difference /= 1000;
+     if (difference < 0) {
+       difference += 60 * 60 * 24;
+     }
+     return (time.valueOf() - (new Date()).valueOf()) / 1000;
+  }
+
+  $(function() {
+    var options = parseHash();
+    var duration = until(options["time"]);
+    console.log(options, duration);
+    loadSongs(options["type"], function(songs) {
+      constructList(songs, duration);
+    });
+  });
+  </script>
+</head>
+<body>
+  <audio id="player">
+    <source id="mp3_src" type="audio/mp3" />
+  </audio>
+  <div>
+    <ul id="songList">
+    </ul>
+  </div>
+</body>
+</html>
